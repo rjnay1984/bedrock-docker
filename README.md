@@ -1,5 +1,5 @@
 # Bedrock Docker
 ## Todo
-[] - Update scripts
-[] - Documentation
-[] - File permissions
+- Update scripts
+- Documentation
+- File permissions
