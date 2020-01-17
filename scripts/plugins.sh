@@ -2,7 +2,7 @@ declare DEPENDENCIES=(${DEPENDENCIES//,/ })
 declare AUTO_UPDATE=${AUTO_UPDATE:-true}
 
 update_dependencies() {
-    cd /app/
+    cd /var/www/html/
 
     # Get base packages which are installed after 'composer create-project roots/bedrock'.
     base=$(cat composer.base |

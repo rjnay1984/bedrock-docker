@@ -76,13 +76,13 @@ RUN { \
 # Add composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
-# TODO: Figure out how to not duplicate composer commands
-
+# Add scripts
 COPY scripts/ /scripts/
 RUN chown -R www-data:www-data /scripts \
     && chmod -R +x /scripts
 
-WORKDIR /app
+# Update permissions
+WORKDIR /var/www/html
 RUN chown -R www-data:www-data .
 USER www-data
 
@@ -90,7 +90,8 @@ USER www-data
 RUN composer create-project roots/bedrock . \
     && cp composer.json composer.base
 
-VOLUME [ "/app" ]
+# Install plugins from docker-compose
+VOLUME [ "/var/www/html" ]
 
 ENTRYPOINT [ "/scripts/run.sh" ]
 
