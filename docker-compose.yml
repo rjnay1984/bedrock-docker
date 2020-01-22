@@ -13,7 +13,7 @@ services:
       - mysql_data:/var/lib/mysql
 
   wordpress:
-    image: bedrock
+    image: rjnay1984/bedrock
     restart: always
     depends_on:
       - mysql
