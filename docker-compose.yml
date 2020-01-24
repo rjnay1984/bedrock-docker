@@ -1,4 +1,4 @@
-version: '3.7'
+version: '2.1'
 
 services:
   mysql:
@@ -8,28 +8,18 @@ services:
       - 3306:3306
     environment:
       MYSQL_ROOT_PASSWORD: password
-      MYSQL_DATABASE: bedrock
+      MYSQL_DATABASE: bedrock_docker
     volumes:
       - mysql_data:/var/lib/mysql
 
   wordpress:
-    image: rjnay1984/bedrock
-    restart: always
     depends_on:
       - mysql
     build: .
     ports:
       - 9000:9000
     env_file:
-      - ./.env
-    environment:
-      DEPENDENCIES: >-
-        timber/timber
-        wpackagist-plugin/members
-    volumes:
-      - wordpress:/var/www/html
-      - ./themes:/var/www/html/web/app/themes
-      - ./config:/var/www/html/config
+      - ./bedrock/.env
 
   nginx:
     image: nginx:latest
@@ -38,13 +28,11 @@ services:
       - wordpress
     ports:
       - 80:80
-    working_dir: /app
+    volumes_from:
+      - wordpress:ro
     volumes:
-      - ./default.conf:/etc/nginx/conf.d/default.conf
-      - wordpress:/var/www/html
-      - ./themes:/var/www/html/web/app/themes
-      - ./config:/var/www/html/config
+      - ./.config/default.conf:/etc/nginx/conf.d/default.conf
+      - ./bedrock/web/app/uploads:/var/www/html/web/app/uploads
 
 volumes:
   mysql_data:
-  wordpress:

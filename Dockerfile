@@ -1,4 +1,4 @@
-FROM php:7.3-fpm
+FROM php:7.4-fpm
 
 # persistent dependencies
 RUN set -eux; \
@@ -23,7 +23,7 @@ RUN set -ex; \
 		libzip-dev \
 	; \
 	\
-	docker-php-ext-configure gd --with-freetype-dir=/usr --with-jpeg-dir=/usr --with-png-dir=/usr; \
+	docker-php-ext-configure gd --with-freetype --with-jpeg; \
 	docker-php-ext-install -j "$(nproc)" \
 		bcmath \
 		exif \
@@ -73,26 +73,11 @@ RUN { \
 		echo 'html_errors = Off'; \
 	} > /usr/local/etc/php/conf.d/error-logging.ini
 
-# Add composer
-COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
-
-# Add scripts
-COPY scripts/ /scripts/
-RUN chown -R www-data:www-data /scripts \
-    && chmod -R +x /scripts
-
-# Update permissions
+# Copy files from vendor
 WORKDIR /var/www/html
-RUN chown -R www-data:www-data .
-USER www-data
 
-# Install Bedrock and save original dependencies in file
-RUN composer create-project roots/bedrock . \
-    && cp composer.json composer.base
+COPY --from=composer /usr/bin/composer /usr/bin/composer
 
-# Install plugins from docker-compose
-VOLUME [ "/var/www/html" ]
-
-ENTRYPOINT [ "/scripts/run.sh" ]
-
-CMD [ "docker-php-entrypoint", "php-fpm"]
+RUN composer create-project roots/bedrock . --no-install
+COPY ./bedrock/composer* ./
+RUN composer install
