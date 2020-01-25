@@ -26,6 +26,7 @@ services:
       - ./bedrock/config:/var/www/html/config
       - ./bedrock/composer.json:/var/www/html/composer.json
       - ./bedrock/composer.lock:/var/www/html/composer.lock
+      - ./themes:/var/www/html/web/app/themes
       - wordpress_data:/var/www/html
 
   mysql:
