@@ -1,24 +1,27 @@
-FROM php:7.3-fpm
+FROM composer:latest as composer
+WORKDIR /app
+COPY ./wordpress/composer* ./
+RUN composer install
+
+FROM php:7.3-fpm-alpine
 
 # persistent dependencies
-RUN set -eux; \
-	apt-get update; \
-	apt-get install -y --no-install-recommends \
+RUN apk add --no-cache \
+# in theory, docker-entrypoint.sh is POSIX-compliant, but priority is a working, consistent image
+		bash \
+# BusyBox sed is not sufficient for some of our sed expressions
+		sed \
 # Ghostscript is required for rendering PDF previews
-		ghostscript \
-	; \
-	rm -rf /var/lib/apt/lists/*
+		ghostscript
 
 # install the PHP extensions we need (https://make.wordpress.org/hosting/handbook/handbook/server-environment/#php-extensions)
 RUN set -ex; \
 	\
-	savedAptMark="$(apt-mark showmanual)"; \
-	\
-	apt-get update; \
-	apt-get install -y --no-install-recommends \
-		libfreetype6-dev \
-		libjpeg-dev \
-		libmagickwand-dev \
+	apk add --no-cache --virtual .build-deps \
+		$PHPIZE_DEPS \
+		freetype-dev \
+		imagemagick-dev \
+		libjpeg-turbo-dev \
 		libpng-dev \
 		libzip-dev \
 	; \
@@ -35,19 +38,14 @@ RUN set -ex; \
 	pecl install imagick-3.4.4; \
 	docker-php-ext-enable imagick; \
 	\
-# reset apt-mark's "manual" list so that "purge --auto-remove" will remove all build dependencies
-	apt-mark auto '.*' > /dev/null; \
-	apt-mark manual $savedAptMark; \
-	ldd "$(php -r 'echo ini_get("extension_dir");')"/*.so \
-		| awk '/=>/ { print $3 }' \
-		| sort -u \
-		| xargs -r dpkg-query -S \
-		| cut -d: -f1 \
-		| sort -u \
-		| xargs -rt apt-mark manual; \
-	\
-	apt-get purge -y --auto-remove -o APT::AutoRemove::RecommendsImportant=false; \
-	rm -rf /var/lib/apt/lists/*
+	runDeps="$( \
+		scanelf --needed --nobanner --format '%n#p' --recursive /usr/local/lib/php/extensions \
+			| tr ',' '\n' \
+			| sort -u \
+			| awk 'system("[ -e /usr/local/lib/" $1 " ]") == 0 { next } { print "so:" $1 }' \
+	)"; \
+	apk add --virtual .wordpress-phpexts-rundeps $runDeps; \
+	apk del .build-deps
 
 # set recommended PHP.ini settings
 # see https://secure.php.net/manual/en/opcache.installation.php
@@ -73,13 +71,12 @@ RUN { \
 		echo 'html_errors = Off'; \
 	} > /usr/local/etc/php/conf.d/error-logging.ini
 
-COPY --from=composer /usr/bin/composer /usr/bin/composer
-
-# Copy files from vendor
 WORKDIR /var/www/html
 
-RUN composer create-project roots/bedrock . --no-install
+COPY ./wordpress .
 
-RUN composer install
+# Copy files from vendor
+COPY --from=composer --chown=www-data:www-data /app/vendor vendor
+COPY --from=composer --chown=www-data:www-data /app/web web
 
 RUN chown -R www-data:www-data .
